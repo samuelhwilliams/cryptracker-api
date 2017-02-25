@@ -52,7 +52,7 @@ def convert():
         return jsonify({'status': 'FAIL', 'reason': 'Source cryptocurrency not present in coin market data.'}),\
                status.HTTP_404_NOT_FOUND
 
-    result = {source_cryptocurrency: amount, 'usd': amount * price_usd}
+    result = {source_cryptocurrency: amount, 'usd_per_unit': price_usd, 'usd': amount * price_usd}
     if target_currency != 'usd':
         try:
             data = urllib_request.urlopen('https://api.fixer.io/latest?base=USD&symbols={}'.format(target_currency.upper()))
