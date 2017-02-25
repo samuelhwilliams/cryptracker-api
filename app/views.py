@@ -3,9 +3,12 @@
 from flask import render_template, jsonify, request as flask_request
 from flask_api import status
 from app import app
-from urllib import request as urllib_request
 from lxml import html
 import json
+from urllib import request
+
+COINMARKETCAP_DATA = json.loads(request.urlopen('https://api.coinmarketcap.com/v1/ticker/').read().decode('utf8'))
+FIXERIO_DATA = json.loads(request.urlopen('https://api.fixer.io/latest?base=USD').read().decode('utf8'))
 
 @app.route('/')
 @app.route('/index')
@@ -37,31 +40,11 @@ def convert():
                                                         '{}'.format(bought_at)}),\
                    status.HTTP_400_BAD_REQUEST
 
-    try:
-        data = urllib_request.urlopen('https://coinmarketcap.com/').read()
-
-    except:
-        return jsonify({'status': 'FAIL', 'reason': 'Unable to retrieve coin market data.'}),\
-               status.HTTP_503_SERVICE_UNAVAILABLE
-
-    doc = html.fromstring(data)
-    try:
-        price_usd = float(doc.xpath("//table[@id='currencies']//tr[@id='id-{}']//a[@class='price']/@data-usd".format(
-            source_cryptocurrency))[0])
-    except:
-        return jsonify({'status': 'FAIL', 'reason': 'Source cryptocurrency not present in coin market data.'}),\
-               status.HTTP_404_NOT_FOUND
+    price_usd = float([x for x in COINMARKETCAP_DATA if x['name'].lower() == source_cryptocurrency][0]['price_usd'])
 
     result = {source_cryptocurrency: amount, 'usd_per_unit': price_usd, 'usd': amount * price_usd}
     if target_currency != 'usd':
-        try:
-            data = urllib_request.urlopen('https://api.fixer.io/latest?base=USD&symbols={}'.format(target_currency.upper()))
-        except:
-            return jsonify({'status': 'FAIL', 'reason': 'Target currency not found for conversion from USD.'}),\
-                   status.HTTP_404_NOT_FOUND
-
-        rates = json.loads(data.read().decode('utf8'))
-        result.update({target_currency: amount * price_usd * rates['rates'][target_currency.upper()]})
+        result.update({target_currency: amount * price_usd * FIXERIO_DATA['rates'][target_currency.upper()]})
 
     if bought_at:
         result.update({'bought_at': bought_at, 'change': result[target_currency] - bought_at})
