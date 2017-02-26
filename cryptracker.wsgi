@@ -2,6 +2,6 @@
 
 import sys, os
 
-sys.path.insert(0, '/home/crypto/crypto')
+sys.path.insert(0, '/home/cryptracker/cryptracker-api')
 
 from app import app as application
