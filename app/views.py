@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 
-from flask import render_template, jsonify, request as flask_request
+from flask import jsonify
 from flask_api import status
 from app import app
-from lxml import html
-import json
-from urllib import request
 
-COINMARKETCAP_DATA = json.loads(request.urlopen('https://api.coinmarketcap.com/v1/ticker/').read().decode('utf8'))
-FIXERIO_DATA = json.loads(request.urlopen('https://api.fixer.io/latest?base=USD').read().decode('utf8'))
+from .helpers import coinmarketcap_data, fixerio_data
 
 @app.route('/')
 @app.route('/index')
@@ -25,7 +21,7 @@ def convert(source_cryptocurrency, amount, target_currency):
     target_currency = target_currency.upper()
 
     try:
-        price_usd = float([x for x in COINMARKETCAP_DATA if x['symbol'] == source_cryptocurrency][0]['price_usd'])
+        price_usd = float([x for x in coinmarketcap_data() if x['symbol'] == source_cryptocurrency][0]['price_usd'])
     except KeyError as e:
         return jsonify({'status': 'FAIL', 'reason': 'Requested source cryptocurrency symbol not found: {}.'
                        .format(source_cryptocurrency)}), status.HTTP_404_NOT_FOUND
@@ -33,7 +29,7 @@ def convert(source_cryptocurrency, amount, target_currency):
     result = {source_cryptocurrency.lower(): amount, 'usd_per_unit': price_usd, 'usd': amount * price_usd}
     if target_currency != 'USD':
         try:
-            result.update({target_currency.lower(): amount * price_usd * FIXERIO_DATA['rates'][target_currency]})
+            result.update({target_currency.lower(): amount * price_usd * fixerio_data()['rates'][target_currency]})
         except KeyError as e:
             return jsonify({'status': 'FAIL', 'reason': 'Requested target fiat currency symbol not found: {}.'
                            .format(target_currency)}), status.HTTP_404_NOT_FOUND
