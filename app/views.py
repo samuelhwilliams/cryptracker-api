@@ -16,37 +16,26 @@ def index():
     return jsonify({'status': 'OK'})
 
 
-@app.route('/convert', methods=['GET'])
-def convert():
-    if not all([x in flask_request.args for x in ('source', 'amount', 'target')]):
-        return jsonify({'status': 'FAIL', 'reason': 'Mandatory parameters not passed: source, amount, target.'}),\
-               status.HTTP_400_BAD_REQUEST
+@app.route('/convert/<string:source_cryptocurrency>/<int:amount>/<string:target_currency>', methods=['GET'])
+@app.route('/convert/<string:source_cryptocurrency>/<float:amount>/<string:target_currency>', methods=['GET'])
+def convert(source_cryptocurrency, amount, target_currency):
+    """Converts a given number of source cryptocurrency coins/units to the 'best guess' estimate of their equivalent
+    value in a specific target fiat currency."""
+    source_cryptocurrency = source_cryptocurrency.upper()
+    target_currency = target_currency.upper()
 
     try:
-        source_cryptocurrency = flask_request.args.get('source').lower()
-        amount = float(flask_request.args.get('amount'))
-        target_currency = flask_request.args.get('target').lower()
-    except ValueError as e:
-        return jsonify({'status': 'FAIL', 'reason': 'Invalid amount (must be float-able): '
-                                                    '{}'.format(request.args.get('amount'))}),\
-               status.HTTP_400_BAD_REQUEST
+        price_usd = float([x for x in COINMARKETCAP_DATA if x['symbol'] == source_cryptocurrency][0]['price_usd'])
+    except KeyError as e:
+        return jsonify({'status': 'FAIL', 'reason': 'Requested source cryptocurrency symbol not found: {}.'
+                       .format(source_cryptocurrency)}), status.HTTP_404_NOT_FOUND
 
-    bought_at = flask_request.args.get('bought_at')
-    if bought_at:
+    result = {source_cryptocurrency.lower(): amount, 'usd_per_unit': price_usd, 'usd': amount * price_usd}
+    if target_currency != 'USD':
         try:
-            bought_at = float(bought_at)
-        except ValueError as e:
-            return jsonify({'status': 'FAIL', 'reason': 'Invalid bought_at (must be float-able): '
-                                                        '{}'.format(bought_at)}),\
-                   status.HTTP_400_BAD_REQUEST
-
-    price_usd = float([x for x in COINMARKETCAP_DATA if x['name'].lower() == source_cryptocurrency][0]['price_usd'])
-
-    result = {source_cryptocurrency: amount, 'usd_per_unit': price_usd, 'usd': amount * price_usd}
-    if target_currency != 'usd':
-        result.update({target_currency: amount * price_usd * FIXERIO_DATA['rates'][target_currency.upper()]})
-
-    if bought_at:
-        result.update({'bought_at': bought_at, 'change': result[target_currency] - bought_at})
+            result.update({target_currency.lower(): amount * price_usd * FIXERIO_DATA['rates'][target_currency]})
+        except KeyError as e:
+            return jsonify({'status': 'FAIL', 'reason': 'Requested target fiat currency symbol not found: {}.'
+                           .format(target_currency)}), status.HTTP_404_NOT_FOUND
 
     return jsonify(result), status.HTTP_200_OK
