@@ -52,6 +52,6 @@ if __name__ == '__main__':
     with open('../secrets/config.json') as config_file:
         config = json.loads(config_file.read())
 
-    with open('{}.conf'.format(config['server_name']), 'w') as apache_config_file:
-        apache_config_file.write(APACHE_CONFIG.format(config['server_name']))
+    with open('{}.conf'.format(config['domain']), 'w') as apache_config_file:
+        apache_config_file.write(APACHE_CONFIG.format(config['domain']))
 
