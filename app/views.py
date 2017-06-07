@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import json
+import os
+
 from flask import jsonify
 from flask_api import status
 from app import app
@@ -35,3 +38,18 @@ def convert(source_cryptocurrency, amount, target_currency):
                            .format(target_currency)}), status.HTTP_404_NOT_FOUND
 
     return jsonify(result), status.HTTP_200_OK
+
+@app.route('/balances/<string:identifier>', methods=['GET'])
+def balances(identifier):
+    """Return a list of dicts describing crypto balances held."""
+    identifier = identifier.lower()
+
+    try:
+        with open(os.path.join(os.getcwd(), 'secrets', 'balances.json'), 'r') as balfile:
+            balances = json.loads(balfile.read())
+            balance = balances[identifier]
+    except Exception as e:
+        print(e)
+        return jsonify({'status': 'FAIL', 'reason': 'Invalid balance identifier: {}'.format(identifier)}), status.HTTP_404_NOT_FOUND
+
+    return jsonify(balance), status.HTTP_200_OK
